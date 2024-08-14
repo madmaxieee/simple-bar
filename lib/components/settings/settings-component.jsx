@@ -22,6 +22,7 @@ export default function Component({ closeSettings }) {
   const refreshSimpleBar = async (e) => {
     Utils.clickEffect(e);
     setPendingChanges(0);
+    exportSettings();
     await Settings.set(newSettings);
     Utils.hardRefresh();
   };
@@ -30,14 +31,14 @@ export default function Component({ closeSettings }) {
     let fileExists = false;
     try {
       fileExists = Boolean(
-        await Uebersicht.run(`ls ${EXTERNAL_CONFIG_FILE_PATH}`)
+        await Uebersicht.run(`ls ${EXTERNAL_CONFIG_FILE_PATH}`),
       );
     } catch (e) {
       //
     }
     if (!fileExists) return;
     const externalConfig = JSON.parse(
-      await Uebersicht.run(`cat ${EXTERNAL_CONFIG_FILE_PATH}`)
+      await Uebersicht.run(`cat ${EXTERNAL_CONFIG_FILE_PATH}`),
     );
     setNewSettings(externalConfig);
   };
@@ -48,8 +49,8 @@ export default function Component({ closeSettings }) {
       await Uebersicht.run(
         `echo '${JSON.stringify(newSettings, undefined, 2).replace(
           /'/g,
-          "'\"'\"'"
-        )}' | tee ${EXTERNAL_CONFIG_FILE_PATH}`
+          "'\"'\"'",
+        )}' | tee ${EXTERNAL_CONFIG_FILE_PATH}`,
       );
     }
   };
@@ -58,10 +59,33 @@ export default function Component({ closeSettings }) {
     const diffs = Utils.compareObjects(Settings.get(), newSettings);
     const deepDiffs = Object.keys(diffs).reduce(
       (acc, key) => [...acc, ...Object.keys(diffs[key])],
-      []
+      [],
     );
     setPendingChanges(deepDiffs.length);
   }, [newSettings]);
+
+  React.useEffect(async () => {
+    let fileExists = false;
+    try {
+      fileExists = Boolean(
+        await Uebersicht.run(`ls ${EXTERNAL_CONFIG_FILE_PATH}`),
+      );
+    } catch (e) {
+      //
+    }
+    if (!fileExists) return;
+    const externalConfig = JSON.parse(
+      await Uebersicht.run(`cat ${EXTERNAL_CONFIG_FILE_PATH}`),
+    );
+    const diffs = Utils.compareObjects(Settings.get(), externalConfig);
+    const deepDiffs = Object.keys(diffs).reduce(
+      (acc, key) => [...acc, ...Object.keys(diffs[key])],
+      [],
+    );
+    if (deepDiffs.length == 0) return;
+    await Settings.set(externalConfig);
+    Utils.hardRefresh();
+  }, []);
 
   return (
     <div className="settings">
